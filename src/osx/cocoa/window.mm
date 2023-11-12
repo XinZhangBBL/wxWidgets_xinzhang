@@ -2601,9 +2601,12 @@ wxWidgetImpl( peer, flags )
     // check if the user wants to create the control initially hidden
     if ( !peer->IsShown() )
         SetVisibility(false);
-
-    if ( IsUserPane() )
-        ClipsToBounds(true);
+    
+    // gc aware handling
+    if ( m_osxView )
+        CFRetain(m_osxView);
+    [m_osxView release];
+    m_osxView.clipsToBounds = YES;
 }
 
 
