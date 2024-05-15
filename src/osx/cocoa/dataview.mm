@@ -1662,6 +1662,47 @@ outlineView:(NSOutlineView*)outlineView
     {
         impl->doCommandBySelector(aSelector, self, _cmd);
     }
+    //FIXME Vojtech's hack to get the accelerators assigned to the wxDataViewControl working.
+    else if (! implementation->DoHandleKeyEvent(event))
+    {
+        [super keyDown:event];  // all other keys
+    }
+}
+
+//FIXME Vojtech: This is a workaround to get at least the "mouse move" events at the wxDataViewControl,
+// so we can show the tooltips. The "mouse move" events are being send only if the wxDataViewControl
+// has focus, which is a limitation of wxWidgets. We may grab focus on "mouse entry" though.
+- (void)mouseMoved:(NSEvent *)event
+{
+if (! implementation->DoHandleMouseEvent(event))
+        [super mouseMoved:event];
+}
+
+//
+// contextual menus
+//
+-(NSMenu*) menuForEvent:(NSEvent*)theEvent
+{
+    wxUnusedVar(theEvent);
+
+    // this method does not do any special menu event handling but only sends
+    // an event message; therefore, the user has full control if a context
+    // menu should be shown or not
+    wxDataViewCtrl* const dvc = implementation->GetDataViewCtrl();
+
+    // get the item information;
+    // theoretically more than one ID can be returned but the event can only
+    // handle one item, therefore only the first item of the array is
+    // returned:
+    wxDataViewItem item;
+    wxDataViewItemArray selectedItems;
+    if (dvc->GetSelections(selectedItems) > 0)
+        item = selectedItems[0];
+
+    wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_CONTEXT_MENU, dvc, item);
+    dvc->GetEventHandler()->ProcessEvent(event);
+    // nothing is done:
+    return nil;
 }
 
 //
@@ -2578,32 +2619,21 @@ void wxCocoaDataViewControl::DoSetIndent(int indent)
 
 void wxCocoaDataViewControl::HitTest(const wxPoint& point_, wxDataViewItem& item, wxDataViewColumn*& columnPtr) const
 {
-    // Assume no item by default.
-    columnPtr = NULL;
-    item      = wxDataViewItem();
-
-    // Make a copy before modifying it.
-    wxPoint point(point_);
-
-    // First check that the point is not inside the header area and adjust it
-    // by its offset.
-    if (NSTableHeaderView* const headerView = [m_OutlineView headerView])
-    {
-        if (point.y < headerView.visibleRect.size.height)
-            return;
-    }
-
+    NSTableHeaderView *headerView = [m_OutlineView headerView];
+    if (headerView && point.y < headerView.visibleRect.size.height) {
+    // The point is inside the header area.
+            columnPtr = NULL;
+            item      = wxDataViewItem();
+    return;
+        }
     // Convert from the window coordinates to the virtual scrolled view coordinates.
     NSScrollView *scrollView = [m_OutlineView enclosingScrollView];
-    const NSRect& visibleRect = scrollView.contentView.visibleRect;
-    point.x += visibleRect.origin.x;
-    point.y += visibleRect.origin.y;
-
-    NSPoint const nativePoint = wxToNSPoint((NSScrollView*) GetWXWidget(),point);
+    const NSRect &visibleRect = scrollView.contentView.visibleRect;
+    NSPoint const nativePoint = wxToNSPoint((NSScrollView*) GetWXWidget(),
+    wxPoint(point.x + visibleRect.origin.x, point.y + visibleRect.origin.y));
 
     int indexColumn;
     int indexRow;
-
 
     indexColumn = [m_OutlineView columnAtPoint:nativePoint];
     indexRow    = [m_OutlineView rowAtPoint:   nativePoint];

@@ -461,15 +461,11 @@ if(wxUSE_GUI)
                 endforeach()
             endif()
             if(WXGTK3 AND OpenGL_EGL_FOUND AND wxUSE_GLCANVAS_EGL)
-                if(TARGET OpenGL::EGL)
-                    set(OPENGL_LIBRARIES OpenGL::EGL ${OPENGL_LIBRARIES})
+                if(UNIX AND NOT APPLE)
+                set(OPENGL_LIBRARIES OpenGL EGL)
                 else()
-                    # It's possible for OpenGL::EGL not to be set even when EGL
-                    # is found, at least under Cygwin (see #23673), so use the
-                    # library directly like this to avoid link problems.
-                    set(OPENGL_LIBRARIES ${OPENGL_egl_LIBRARY} ${OPENGL_LIBRARIES})
+                set(OPENGL_LIBRARIES OpenGL::OpenGL OpenGL::EGL)
                 endif()
-                set(OPENGL_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${OPENGL_EGL_INCLUDE_DIRS})
                 find_package(WAYLANDEGL)
                 if(WAYLANDEGL_FOUND AND wxHAVE_GDK_WAYLAND)
                     list(APPEND OPENGL_LIBRARIES ${WAYLANDEGL_LIBRARIES})
