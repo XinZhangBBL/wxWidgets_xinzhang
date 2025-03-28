@@ -20,7 +20,16 @@ function(wx_webview_copy_webview2_loader target)
         return()
     endif()
 
-    wx_set_webview2_arch()
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(WEBVIEW2_ARCH x86)
+    else()
+        if ((CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|aarch64)$") OR (CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64"))
+            set(WEBVIEW2_ARCH arm64)
+        else()
+            set(WEBVIEW2_ARCH x64)
+        endif()
+    endif()
+
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
         "${WEBVIEW2_PACKAGE_DIR}/build/native/${WEBVIEW2_ARCH}/WebView2Loader.dll"
