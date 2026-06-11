@@ -11,12 +11,12 @@
 #ifndef _WX_MSW_WRAPCCTL_H_
 #define _WX_MSW_WRAPCCTL_H_
 
-#include "wx/msw/wrapwin.h"
-
 #if !defined(_WIN32_IE) || _WIN32_IE < 0x0600
     #undef _WIN32_IE
     #define _WIN32_IE 0x0600
 #endif
+
+#include "wx/msw/wrapwin.h"
 
 #include <commctrl.h>
 
