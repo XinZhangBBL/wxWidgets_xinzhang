@@ -4079,8 +4079,7 @@ void wxGrid::ProcessRowColLabelMouseEvent( const wxGridOperations &oper, wxMouse
                 if ( m_selection && m_numRows && m_numCols &&
                      m_selection->IsInSelection(m_currentCellCoords) )
                 {
-                    //BBS: add cursor mode for DoGridDragResize's paremeters
-                    DoGridDragResize(event.GetPosition(), wxGridRowOperations(), gridWindow, WXGRID_CURSOR_RESIZE_ROW);
+                    oper.SelectionExtendCurrentBlock(this, line, event, wxEVT_GRID_RANGE_SELECTING);
                 }
             }
             else if ( m_cursorMode == oper.GetCursorModeMove() )
@@ -4443,351 +4442,7 @@ void wxGrid::DoStartResizeRowOrCol(int col, int size)
     AcceptCellEditControlIfShown();
 
     m_dragRowOrCol = col;
-}
-
-void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindow* colLabelWin )
-{
-    int x;
-    wxGridWindow *gridWindow = colLabelWin->IsFrozen() ? m_frozenColGridWin : m_gridWin;
-
-    event.SetPosition(event.GetPosition() + GetGridWindowOffset(gridWindow));
-
-    // for drag, we could be moving from the window sending the event to the other
-    if (colLabelWin->IsFrozen() && event.GetPosition().x > colLabelWin->GetClientSize().x)
-        gridWindow = m_gridWin;
-
-    CalcGridWindowUnscrolledPosition(event.GetPosition().x, 0, &x, NULL, gridWindow);
-
-    int col = XToCol(x);
-    if ( event.Dragging() )
-    {
-        if (!m_isDragging)
-        {
-            m_isDragging = true;
-
-            if ( m_cursorMode == WXGRID_CURSOR_MOVE_COL && col != -1 )
-                DoStartMoveCol(col);
-        }
-
-        if ( event.LeftIsDown() )
-        {
-            switch ( m_cursorMode )
-            {
-                case WXGRID_CURSOR_RESIZE_COL:
-                    //BBS: add cursor mode for DoGridDragResize's paremeters
-                    DoGridDragResize(event.GetPosition(), wxGridColumnOperations(), gridWindow, WXGRID_CURSOR_RESIZE_COL);
-                break;
-
-                case WXGRID_CURSOR_SELECT_COL:
-                {
-                    if ( col != -1 )
-                    {
-                        if ( !m_selection || m_numRows == 0 || m_numCols == 0 )
-                            break;
-
-                        // We can't extend the selection from non-selected
-                        // column which may happen if we Ctrl-clicked it
-                        // initially.
-                        if ( !m_selection->IsInSelection(m_currentCellCoords) )
-                            break;
-
-                        m_selection->ExtendCurrentBlock(
-                            wxGridCellCoords(0, m_currentCellCoords.GetCol()),
-                            wxGridCellCoords(GetNumberRows() - 1, col),
-                            event,
-                            wxEVT_GRID_RANGE_SELECTING);
-                    }
-                }
-                break;
-
-                case WXGRID_CURSOR_MOVE_COL:
-                {
-                    int posNew = XToPos(x, NULL);
-                    int colNew = GetColAt(posNew);
-
-                    // determine the position of the drop marker
-                    int markerX;
-                    if ( x >= GetColLeft(colNew) + (GetColWidth(colNew) / 2) )
-                        markerX = GetColRight(colNew);
-                    else
-                        markerX = GetColLeft(colNew);
-
-                    if ( markerX != m_dragLastPos )
-                    {
-                        wxClientDC dc( GetColLabelWindow() );
-                        DoPrepareDC(dc);
-
-                        int cw, ch;
-                        GetColLabelWindow()->GetClientSize( &cw, &ch );
-
-                        markerX++;
-
-                        //Clean up the last indicator
-                        if ( m_dragLastPos >= 0 )
-                        {
-                            wxPen pen( GetColLabelWindow()->GetBackgroundColour(), 2 );
-                            dc.SetPen(pen);
-                            dc.DrawLine( m_dragLastPos + 1, 0, m_dragLastPos + 1, ch );
-                            dc.SetPen(wxNullPen);
-
-                            if ( XToCol( m_dragLastPos ) != -1 )
-                                DrawColLabel( dc, XToCol( m_dragLastPos ) );
-                        }
-
-                        const wxColour *color;
-                        //Moving to the same place? Don't draw a marker
-                        if ( colNew == m_dragMoveCol )
-                            color = wxLIGHT_GREY;
-                        else
-                            color = wxBLUE;
-
-                        //Draw the marker
-                        wxPen pen( *color, 2 );
-                        dc.SetPen(pen);
-
-                        dc.DrawLine( markerX, 0, markerX, ch );
-
-                        dc.SetPen(wxNullPen);
-
-                        m_dragLastPos = markerX - 1;
-                    }
-                }
-                break;
-
-                // default label to suppress warnings about "enumeration value
-                // 'xxx' not handled in switch
-                default:
-                    break;
-            }
-        }
-        return;
-    }
-
-    if ( m_isDragging && (event.Entering() || event.Leaving()) )
-        return;
-
-    // ------------ Entering or leaving the window
-    //
-    if ( event.Entering() || event.Leaving() )
-    {
-        ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, colLabelWin);
-    }
-
-    // ------------ Left button pressed
-    //
-    else if ( event.LeftDown() )
-    {
-        int colEdge = XToEdgeOfCol(x);
-        if ( colEdge != wxNOT_FOUND && CanDragColSize(colEdge) )
-        {
-            DoStartResizeRowOrCol(colEdge);
-            ChangeCursorMode(WXGRID_CURSOR_RESIZE_COL, colLabelWin);
-        }
-        else // not a request to start resizing
-        {
-            if ( col >= 0 &&
-                 SendEvent( wxEVT_GRID_LABEL_LEFT_CLICK, -1, col, event ) == Event_Unhandled )
-            {
-                if ( m_canDragColMove )
-                {
-                    //Show button as pressed
-                    wxClientDC dc( GetColLabelWindow() );
-                    int colLeft = GetColLeft( col );
-                    int colRight = GetColRight( col ) - 1;
-                    dc.SetPen( wxPen( GetColLabelWindow()->GetBackgroundColour(), 1 ) );
-                    dc.DrawLine( colLeft, 1, colLeft, m_colLabelHeight-1 );
-                    dc.DrawLine( colLeft, 1, colRight, 1 );
-
-                    ChangeCursorMode(WXGRID_CURSOR_MOVE_COL, GetColLabelWindow());
-                }
-                else
-                {
-                    if ( m_selection && m_numRows > 0 && m_numCols > 0 &&
-                            m_selection->GetSelectionMode() != wxGridSelectRows )
-                    {
-                        bool selectNewCol = false,
-                             makeColCurrent = false;
-
-                        if ( event.ShiftDown() && !event.CmdDown() )
-                        {
-                            // Continue editing the current selection and don't
-                            // move the grid cursor.
-                            m_selection->ExtendCurrentBlock
-                                         (
-                                            wxGridCellCoords(0, m_currentCellCoords.GetCol()),
-                                            wxGridCellCoords(GetNumberRows() - 1, col),
-                                            event
-                                         );
-                            MakeCellVisible(-1, col);
-                        }
-                        else if ( event.CmdDown() && !event.ShiftDown() )
-                        {
-                            if ( m_selection->IsInSelection(0, col) )
-                            {
-                                DeselectCol(col);
-                                makeColCurrent = true;
-                            }
-                            else
-                            {
-                                makeColCurrent =
-                                selectNewCol = true;
-                            }
-                        }
-                        else
-                        {
-                            ClearSelection();
-                            makeColCurrent =
-                            selectNewCol = true;
-                        }
-
-                        if ( selectNewCol )
-                            m_selection->SelectCol(col, event);
-
-                        if ( makeColCurrent )
-                            SetCurrentCell(GetFirstFullyVisibleRow(), col);
-
-                        ChangeCursorMode(WXGRID_CURSOR_SELECT_COL, colLabelWin);
-                    }
-                }
-            }
-        }
-    }
-
-    // ------------ Left double click
-    //
-    if ( event.LeftDClick() )
-    {
-        const int colEdge = XToEdgeOfCol(x);
-        if ( colEdge == -1 )
-        {
-            if ( col >= 0 &&
-                 SendEvent( wxEVT_GRID_LABEL_LEFT_DCLICK, -1, col, event ) == Event_Unhandled )
-            {
-                // no default action at the moment
-            }
-        }
-        else
-        {
-            HandleColumnAutosize(colEdge, event);
-
-            ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, colLabelWin);
-            m_dragLastPos = -1;
-        }
-    }
-
-    // ------------ Left button released
-    //
-    else if ( event.LeftUp() )
-    {
-        switch ( m_cursorMode )
-        {
-            case WXGRID_CURSOR_RESIZE_COL:
-                DoEndDragResizeCol(event, gridWindow);
-                break;
-
-            case WXGRID_CURSOR_MOVE_COL:
-                if ( m_dragLastPos == -1 || col == m_dragMoveCol )
-                {
-                    // the column didn't actually move anywhere
-                    if ( col != -1 )
-                        DoColHeaderClick(col);
-                    m_colLabelWin->Refresh();   // "unpress" the column
-                }
-                else
-                {
-                    // get the position of the column we're over
-                    int pos = XToPos(x, NULL);
-
-                    // insert the column being dragged either before or after
-                    // it, depending on where exactly it was dropped, so
-                    // find the index of the column we're over: notice
-                    // that the existing "col" variable may be invalid but
-                    // we need a valid one here
-                    const int colValid = GetColAt(pos);
-
-                    // and check if we're on the "near" (usually left but right
-                    // in RTL case) part of the column
-                    const int middle = GetColLeft(colValid) +
-                                            GetColWidth(colValid)/2;
-                    const bool onNearPart = (x <= middle);
-
-                    // adjust for the column being dragged itself
-                    if ( pos < GetColPos(m_dragMoveCol) )
-                        pos++;
-
-                    // and if it's on the near part of the target column,
-                    // insert it before it, not after
-                    if ( onNearPart )
-                        pos--;
-
-                    DoEndMoveCol(pos);
-                }
-                break;
-
-            case WXGRID_CURSOR_SELECT_COL:
-            case WXGRID_CURSOR_SELECT_CELL:
-            case WXGRID_CURSOR_RESIZE_ROW:
-            case WXGRID_CURSOR_SELECT_ROW:
-                if ( col != -1 )
-                    DoColHeaderClick(col);
-                break;
-        }
-
-        ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, GetColLabelWindow());
-        m_dragLastPos = -1;
-        m_isDragging = false;
-    }
-
-    // ------------ Right button down
-    //
-    else if ( event.RightDown() )
-    {
-        if ( col < 0 ||
-             SendEvent( wxEVT_GRID_LABEL_RIGHT_CLICK, -1, col, event ) == Event_Unhandled )
-        {
-            // no default action at the moment
-            event.Skip();
-        }
-    }
-
-    // ------------ Right double click
-    //
-    else if ( event.RightDClick() )
-    {
-        if ( col < 0 ||
-             SendEvent( wxEVT_GRID_LABEL_RIGHT_DCLICK, -1, col, event ) == Event_Unhandled )
-        {
-            // no default action at the moment
-            event.Skip();
-        }
-    }
-
-    // ------------ No buttons down and mouse moving
-    //
-    else if ( event.Moving() )
-    {
-        const int dragRowOrCol = XToEdgeOfCol( x );
-        if ( dragRowOrCol >= 0 )
-        {
-            if ( m_cursorMode == WXGRID_CURSOR_SELECT_CELL )
-            {
-                if ( CanDragColSize(dragRowOrCol) )
-                {
-                    ChangeCursorMode(WXGRID_CURSOR_RESIZE_COL, colLabelWin, false);
-                }
-            }
-        }
-        else if ( m_cursorMode != WXGRID_CURSOR_SELECT_CELL )
-        {
-            ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, colLabelWin, false);
-        }
-    }
-
-    // Don't consume the remaining events (e.g. right up).
-    else
-    {
-        event.Skip();
-    }
+    m_dragRowOrColOldSize = size;
 }
 
 void wxGrid::ProcessCornerLabelMouseEvent( wxMouseEvent& event )
@@ -5035,13 +4690,13 @@ bool wxGrid::DoGridDragEvent(wxMouseEvent& event,
             return DoGridCellDrag(event, coords, isFirstDrag);
 
         case WXGRID_CURSOR_RESIZE_ROW:
-            //BBS: add cursor mode for DoGridDragResize's paremeters
-            DoGridDragResize(event.GetPosition(), wxGridRowOperations(), gridWindow, WXGRID_CURSOR_RESIZE_ROW);
+            if ( m_dragRowOrCol != -1 )
+                DoGridDragResize(event.GetPosition(), wxGridRowOperations(), gridWindow);
             break;
 
         case WXGRID_CURSOR_RESIZE_COL:
-            //BBS: add cursor mode for DoGridDragResize's paremeters
-            DoGridDragResize(event.GetPosition(), wxGridColumnOperations(), gridWindow, WXGRID_CURSOR_RESIZE_COL);
+            if ( m_dragRowOrCol != -1 )
+                DoGridDragResize(event.GetPosition(), wxGridColumnOperations(), gridWindow);
             break;
 
         default:
@@ -5136,8 +4791,6 @@ wxGrid::DoGridCellLeftDown(wxMouseEvent& event,
                             case wxGridSelectCells:
                             case wxGridSelectRowsOrColumns:
                                 // nothing to do in these cases
-                                //BBS: select this cell when first click
-                                m_selection->SelectBlock(coords.GetRow(), coords.GetCol(), coords.GetRow(), coords.GetCol(), event);
                                 break;
 
                             case wxGridSelectRows:
@@ -5396,11 +5049,9 @@ void wxGrid::ProcessGridCellMouseEvent(wxMouseEvent& event, wxGridWindow *eventG
     }
 }
 
-//BBS: add cursor mode for DoGridDragResize's paremeters
 void wxGrid::DoGridDragResize(const wxPoint& position,
                               const wxGridOperations& oper,
-                              wxGridWindow* gridWindow,
-                              CursorMode mode)
+                              wxGridWindow* gridWindow)
 {
     wxCHECK_RET( m_dragRowOrCol != -1,
                  "shouldn't be called when not drag resizing" );
@@ -5413,28 +5064,10 @@ void wxGrid::DoGridDragResize(const wxPoint& position,
     // orthogonal direction.
     const int linePos = oper.Dual().Select(logicalPos);
 
-    //BBS: add logic for resize multiplexed cols
-    if (mode == WXGRID_CURSOR_RESIZE_COL) {
-        int col_to_resize = m_dragRowOrCol;
-        int num_rows, num_cols;
-        this->GetCellSize(0, m_dragRowOrCol, &num_rows, &num_cols);
-        if (num_cols < 1)
-            col_to_resize = m_dragRowOrCol - 1;
-
-        const int lineEnd = oper.GetLineEndPos(this, m_dragRowOrCol);
-        const int lineSize = oper.GetLineSize(this, col_to_resize);
-        int size = linePos - lineEnd + lineSize;
-        oper.SetLineSize(this, col_to_resize,
-                     wxMax(size,
-                           oper.GetMinimalLineSize(this, col_to_resize)));
-    }
-    else {
-        const int lineStart = oper.GetLineStartPos(this, m_dragRowOrCol);
-
-        oper.SetLineSize(this, m_dragRowOrCol,
+    const int lineStart = oper.GetLineStartPos(this, m_dragRowOrCol);
+    oper.SetLineSize(this, m_dragRowOrCol,
                      wxMax(linePos - lineStart,
                            oper.GetMinimalLineSize(this, m_dragRowOrCol)));
-    }
 
     // TODO: generate RESIZING event, see #10754, if the size has changed.
 }
@@ -5457,8 +5090,7 @@ wxPoint wxGrid::GetPositionForResizeEvent(int width) const
 
 void wxGrid::DoEndDragResizeRow(const wxMouseEvent& event, wxGridWindow* gridWindow)
 {
-    //BBS: add cursor mode for DoGridDragResize's paremeters
-    DoGridDragResize(event.GetPosition(), wxGridRowOperations(), gridWindow, WXGRID_CURSOR_RESIZE_ROW);
+    DoGridDragResize(event.GetPosition(), wxGridRowOperations(), gridWindow);
 
     SendGridSizeEvent(wxEVT_GRID_ROW_SIZE, m_dragRowOrCol, event);
 
@@ -5467,8 +5099,7 @@ void wxGrid::DoEndDragResizeRow(const wxMouseEvent& event, wxGridWindow* gridWin
 
 void wxGrid::DoEndDragResizeCol(const wxMouseEvent& event, wxGridWindow* gridWindow)
 {
-    //BBS: add cursor mode for DoGridDragResize's paremeters
-    DoGridDragResize(event.GetPosition(), wxGridColumnOperations(), gridWindow, WXGRID_CURSOR_RESIZE_COL);
+    DoGridDragResize(event.GetPosition(), wxGridColumnOperations(), gridWindow);
 
     SendGridSizeEvent(wxEVT_GRID_COL_SIZE, m_dragRowOrCol, event);
 
@@ -5482,10 +5113,9 @@ void wxGrid::DoHeaderStartDragResizeCol(int col)
 
 void wxGrid::DoHeaderDragResizeCol(int width)
 {
-    //BBS: add cursor mode for DoGridDragResize's paremeters
     DoGridDragResize(GetPositionForResizeEvent(width),
                      wxGridColumnOperations(),
-                     m_gridWin, WXGRID_CURSOR_RESIZE_COL);
+                     m_gridWin);
 }
 
 void wxGrid::DoHeaderEndDragResizeCol(int width)
@@ -6383,10 +6013,6 @@ void wxGrid::OnKeyDown( wxKeyEvent& event )
                     DisableCellEditControl();
 
                     MoveCursorDown( event.ShiftDown() );
-                    //BBS: select this cell when first click
-                    m_selection->SelectBlock(m_currentCellCoords.GetRow(), m_currentCellCoords.GetCol(),
-                                             m_currentCellCoords.GetRow(), m_currentCellCoords.GetCol(),
-                                             event);
                 }
                 break;
 

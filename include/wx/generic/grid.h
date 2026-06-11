@@ -3027,11 +3027,11 @@ private:
                          wxGridWindow* gridWindow);
 
     // Update the width/height of the column/row being drag-resized.
-    //BBS: add cursor mode for DoGridDragResize's paremeters
+    // Should be only called when m_dragRowOrCol != -1, i.e. dragging is
+    // actually in progress.
     void DoGridDragResize(const wxPoint& position,
                           const wxGridOperations& oper,
-                          wxGridWindow* gridWindow,
-                          CursorMode mode);
+                          wxGridWindow* gridWindow);
 
     // process different clicks on grid cells
     void DoGridCellLeftDown(wxMouseEvent& event,
