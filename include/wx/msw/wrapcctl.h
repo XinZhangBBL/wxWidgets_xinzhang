@@ -41,6 +41,7 @@ extern wxFont wxGetCCDefaultFont();
 
 // this is just a wrapper for HDITEM which we can't use in the public header
 // because we don't want to include commctrl.h (and hence windows.h) from there
+#ifdef HDITEM
 struct wxHDITEM : public HDITEM
 {
     wxHDITEM()
@@ -48,6 +49,15 @@ struct wxHDITEM : public HDITEM
         wxZeroMemory(*this);
     }
 };
+#else
+struct wxHDITEM
+{
+    wxHDITEM()
+    {
+        wxZeroMemory(*this);
+    }
+};
+#endif
 
 #endif // wxUSE_GUI
 
