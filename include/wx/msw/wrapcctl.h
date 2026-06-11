@@ -13,6 +13,11 @@
 
 #include "wx/msw/wrapwin.h"
 
+#if !defined(_WIN32_IE) || _WIN32_IE < 0x0600
+    #undef _WIN32_IE
+    #define _WIN32_IE 0x0600
+#endif
+
 #include <commctrl.h>
 
 // define things which might be missing from our commctrl.h
