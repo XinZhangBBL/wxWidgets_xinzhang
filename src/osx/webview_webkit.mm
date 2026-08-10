@@ -68,8 +68,15 @@ long wxWebViewWebKitSlotFromPath(const wxString& path)
     return slot;
 }
 
-WKWebsiteDataStore* wxWebViewWebKitDataStoreForPath(const wxString& path)
+WKWebsiteDataStore* wxWebViewWebKitDataStoreForPath(const wxString& path,
+                                                    bool forceNonPersistent)
 {
+    if (forceNonPersistent)
+    {
+        wxLogMessage("wxWebViewWebKit: using nonPersistentDataStore (explicit request)");
+        return [WKWebsiteDataStore nonPersistentDataStore];
+    }
+
     if (path.empty())
         return [WKWebsiteDataStore defaultDataStore];
 
@@ -197,7 +204,8 @@ bool wxWebViewWebKit::Create(wxWindow *parent,
     WKWebViewConfiguration* webViewConfig = [[WKWebViewConfiguration alloc] init];
 
     webViewConfig.websiteDataStore =
-        wxWebViewWebKitDataStoreForPath(m_customUserDataPath);
+        wxWebViewWebKitDataStoreForPath(m_customUserDataPath,
+                                        m_nonPersistentWebsiteDataStore);
 
     // WebKit API available since macOS 10.11 and iOS 9.0
     SEL fullScreenSelector = @selector(_setFullScreenEnabled:);
@@ -426,6 +434,17 @@ void wxWebViewWebKit::SetUserDataPathOption(const wxString& path)
     // Must be called before Create(); Create() consumes m_customUserDataPath
     // when building WKWebViewConfiguration.websiteDataStore.
     m_customUserDataPath = path;
+}
+
+void wxWebViewWebKit::SetNonPersistentWebsiteDataStore(bool enable)
+{
+    // Must be called before Create(); takes precedence over SetUserDataPathOption.
+    m_nonPersistentWebsiteDataStore = enable;
+}
+
+bool wxWebViewWebKit::IsNonPersistentWebsiteDataStore() const
+{
+    return m_nonPersistentWebsiteDataStore;
 }
 
 void wxWebViewWebKit::SetZoomType(wxWebViewZoomType zoomType)

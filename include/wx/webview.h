@@ -171,6 +171,12 @@ public:
     // User data path for storing cookies and other data for wxWebViewEdge
     virtual void SetUserDataPathOption(const wxString&) {};
 
+    // Request a non-persistent website data store (macOS WKWebView:
+    // WKWebsiteDataStore.nonPersistentDataStore). No-op on backends that
+    // do not support it. Must be called before Create().
+    virtual void SetNonPersistentWebsiteDataStore(bool WXUNUSED(enable) = true) {}
+    virtual bool IsNonPersistentWebsiteDataStore() const { return false; }
+
     // General methods
     virtual void EnableContextMenu(bool enable = true)
     {

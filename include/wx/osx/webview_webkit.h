@@ -32,13 +32,14 @@ class WXDLLIMPEXP_WEBVIEW wxWebViewWebKit : public wxWebView
 public:
     wxDECLARE_DYNAMIC_CLASS(wxWebViewWebKit);
 
-    wxWebViewWebKit() {}
+    wxWebViewWebKit() : m_nonPersistentWebsiteDataStore(false) {}
     wxWebViewWebKit(wxWindow *parent,
                     wxWindowID winID = wxID_ANY,
                     const wxString& strURL = wxASCII_STR(wxWebViewDefaultURLStr),
                     const wxPoint& pos = wxDefaultPosition,
                     const wxSize& size = wxDefaultSize, long style = 0,
                     const wxString& name = wxASCII_STR(wxWebViewNameStr))
+        : m_nonPersistentWebsiteDataStore(false)
     {
         Create(parent, winID, strURL, pos, size, style, name);
     }
@@ -80,6 +81,12 @@ public:
     // non-persistent fallback for secondary instances on older OS), not a
     // custom filesystem path like WebView2's UserDataFolder.
     virtual void SetUserDataPathOption(const wxString& path) wxOVERRIDE;
+
+    // Force WKWebsiteDataStore.nonPersistentDataStore (in-memory, not shared
+    // with the default store). Takes precedence over SetUserDataPathOption.
+    // Must be called before Create().
+    virtual void SetNonPersistentWebsiteDataStore(bool enable = true) wxOVERRIDE;
+    virtual bool IsNonPersistentWebsiteDataStore() const wxOVERRIDE;
 
     //History functions
     virtual void ClearHistory() wxOVERRIDE;
@@ -123,6 +130,7 @@ private:
     wxStringToWebHandlerMap m_handlers;
     wxString m_customUserAgent;
     wxString m_customUserDataPath;
+    bool m_nonPersistentWebsiteDataStore;
 
     WX_NSObject m_navigationDelegate;
     WX_NSObject m_UIDelegate;
