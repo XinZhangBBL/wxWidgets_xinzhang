@@ -75,6 +75,12 @@ public:
     virtual void EnableAccessToDevTools(bool enable = true) wxOVERRIDE;
     virtual bool SetUserAgent(const wxString& userAgent) wxOVERRIDE;
 
+    // Per-instance website data isolation for dual Studio processes.
+    // On macOS this maps to WKWebsiteDataStore (identifier on 14+,
+    // non-persistent fallback for secondary instances on older OS), not a
+    // custom filesystem path like WebView2's UserDataFolder.
+    virtual void SetUserDataPathOption(const wxString& path) wxOVERRIDE;
+
     //History functions
     virtual void ClearHistory() wxOVERRIDE;
     virtual void EnableHistory(bool enable = true) wxOVERRIDE;
@@ -116,6 +122,7 @@ private:
     OSXWebViewPtr m_webView;
     wxStringToWebHandlerMap m_handlers;
     wxString m_customUserAgent;
+    wxString m_customUserDataPath;
 
     WX_NSObject m_navigationDelegate;
     WX_NSObject m_UIDelegate;
